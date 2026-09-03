@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TvL 模型模拟 - 天才 vs 运气 | Talent vs Luck</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header>
+  <h1>TvL 模型模拟 — <span>天才 vs 运气</span></h1>
+  <p>基于 Pluchino, Biondo & Rapisarda (2018) 的研究 | 模拟运气在个人成功中的角色</p>
+</header>
+
+<div class="controls">
+  <button id="btnStart">▶ 开始模拟</button>
+  <button id="btnPause" disabled>⏸ 暂停</button>
+  <button id="btnReset">↻ 重置</button>
+  <button id="btnFastRun">⚡ 快速运行 (100次)</button>
+  <div class="param-group">
+    <label>速度:</label>
+    <input type="range" id="speedSlider" min="1" max="200" value="50">
+  </div>
+  <div class="param-group">
+    <label>人数:</label>
+    <input type="number" id="numAgents" value="1000" min="100" max="5000" step="100">
+  </div>
+  <div class="param-group">
+    <label>幸运:不幸</label>
+    <select id="eventRatio">
+      <option value="0.5">50:50 (标准)</option>
+      <option value="0.8">80:20 (高增长)</option>
+      <option value="0.2">20:80 (衰退)</option>
+    </select>
+  </div>
+</div>
+
+<main>
+  <div class="layout">
+    <!-- 棋盘可视化 -->
+    <div class="card">
+      <h2>虚拟世界 · 棋盘模拟</h2>
+      <div class="grid-container">
+        <canvas id="gridCanvas" width="600" height="600"></canvas>
+        <div class="grid-legend">
+          <span><span class="legend-dot" style="background:#4fc3f7"></span> 代理人</span>
+          <span><span class="legend-dot" style="background:#4caf50"></span> 幸运事件</span>
+          <span><span class="legend-dot" style="background:#ef5350"></span> 不幸事件</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div id="stepInfo" style="font-size:12px;color:var(--text-dim);margin-top:6px;">准备就绪</div>
+      </div>
+    </div>
+
+    <!-- 实时统计 -->
+    <div class="card">
+      <h2>实时统计</h2>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <div class="label">当前步数</div>
+          <div class="value" id="statStep">0 / 80</div>
+          <div class="sub">模拟年数: <span id="statYear">0</span> / 40</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">总财富</div>
+          <div class="value" id="statTotalWealth">10000</div>
+          <div class="sub">初始: 10000</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">首富财富</div>
+          <div class="value gold" id="statMaxWealth">10</div>
+          <div class="sub">才能: <span id="statMaxTalent">--</span></div>
+        </div>
+        <div class="stat-item">
+          <div class="label">最穷财富</div>
+          <div class="value red" id="statMinWealth">10</div>
+          <div class="sub">才能: <span id="statMinTalent">--</span></div>
+        </div>
+        <div class="stat-item">
+          <div class="label">前20%财富占比</div>
+          <div class="value" id="statPareto">--</div>
+          <div class="sub">帕累托法则验证</div>
+        </div>
+        <div class="stat-item">
+          <div class="label">基尼系数</div>
+          <div class="value" id="statGini">0</div>
+          <div class="sub">不平等程度</div>
+        </div>
+      </div>
+      <div style="margin-top:14px;">
+        <table>
+          <tr><th>排名</th><th>财富</th><th>才能值</th><th>幸运次数</th><th>不幸次数</th></tr>
+          <tbody id="topTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图表区域 -->
+  <div class="layout">
+    <div class="card">
+      <h2>财富分布 (对数坐标) — 验证幂律</h2>
+      <div class="chart-container"><canvas id="wealthChart" class="chart" height="300"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>才能 vs 最终财富 (散点图)</h2>
+      <div class="chart-container"><canvas id="scatterChart" class="chart" height="300"></canvas></div>
+    </div>
+  </div>
+
+  <!-- 多次运行统计 -->
+  <div class="card" style="margin-bottom:20px;">
+    <h2>多次运行统计分析 (100次模拟)</h2>
+    <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:14px;">
+      <div class="stat-item">
+        <div class="label">每次第一名平均才能</div>
+        <div class="value green" id="multiAvgTalent">--</div>
+        <div class="sub">理论值: ~0.667</div>
+      </div>
+      <div class="stat-item">
+        <div class="label">高才能者(T>0.7)成功率</div>
+        <div class="value" id="multiSuccessRate">--</div>
+        <div class="sub">理论值: ~32%</div>
+      </div>
+      <div class="stat-item">
+        <div class="label">平均帕累托比</div>
+        <div class="value gold" id="multiPareto">--</div>
+        <div class="sub">理论值: ~80%</div>
+      </div>
+      <div class="stat-item">
+        <div class="label">平均基尼系数</div>
+        <div class="value" id="multiGini">--</div>
+        <div class="sub">不平等程度</div>
+      </div>
+    </div>
+    <div class="chart-container"><canvas id="multiTalentChart" class="chart" height="200"></canvas></div>
+  </div>
+
+  <!-- 资源分配策略 -->
+  <div class="card">
+    <h2>资源分配策略模拟</h2>
+    <p style="color:var(--text-dim);font-size:13px;margin-bottom:14px;">
+      模拟政府/机构每5年向代理人提供资金补助，比较不同策略对高才能者(T>0.7)成功率的提升效果
+    </p>
+    <div id="fundingResults" class="funding-grid"></div>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/simulation.js"></script>
+<script src="js/renderer.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/funding.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
