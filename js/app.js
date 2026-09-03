@@ -155,5 +155,6 @@ document.getElementById('eventRatio').addEventListener('change', () => {
 // ============================================================
 
 initCharts();
+resizeCanvas();
 resetSim();
 runFundingComparison();
